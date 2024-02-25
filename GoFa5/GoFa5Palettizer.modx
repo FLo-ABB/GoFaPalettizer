@@ -9,7 +9,6 @@ MODULE GoFa5Palettizer
     CONST num aJ5:=80;
     CONST num aJ2:=444;
     CONST num dJ4:=470;
-    !!!
     CONST num aJ3:=110;
     CONST num dJ1:=265;
     CONST num dJ6:=101;
