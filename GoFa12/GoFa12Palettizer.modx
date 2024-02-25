@@ -30,6 +30,7 @@ MODULE GoFa12Palettizer
         VAR num anglezNext;
         VAR num deltaAngle;
 
+        WaitRob\ZeroSpeed;
         pNow:=CRobT(\Tool:=toolParam\WObj:=WObj);
 
         anglezNow:=EulerZYX(\Z,pNow.rot);
@@ -39,7 +40,7 @@ MODULE GoFa12Palettizer
         nSteps:=Trunc(dist) DIV MAX_DIST_STEP;
 
         IF dist>MAX_DIST_STEP THEN
-            FOR I FROM 1 TO nSteps-1 DO
+            FOR I FROM 0 TO nSteps DO
                 pNext.trans.x:=pNow.trans.x+v.x*I/nSteps;
                 pNext.trans.y:=pNow.trans.y+v.y*I/nSteps;
                 pNext.trans.z:=pNow.trans.z+v.z*I/nSteps;
@@ -68,7 +69,7 @@ MODULE GoFa12Palettizer
 
         IF Present(WObj) THEN
             poseInWobj:=[toPoint.trans,toPoint.rot];
-            poseInWobj0:=PoseMult(WObj.uframe,poseInWobj);
+            poseInWobj0:=PoseMult(PoseMult(WObj.oframe,WObj.uframe),poseInWobj);
         ELSE
             poseInWobj0:=[toPoint.trans,toPoint.rot];
         ENDIF

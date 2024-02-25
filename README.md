@@ -11,9 +11,10 @@ of GoFa 5 TechNote.
 
 The `MoveLHomeMade` and `MoveJHomeMade` functions are custom movement functions designed to move the robot to a specific position while avoiding singularities. These functions ensure that joint 4 is always at 0° and joint 5 is always at 90°. 
 
-### Requirements 
+### Limitations 
 
-The tool has to have the tool0 orientation and only with z-value. Workobjects and targets have to be reachable by the robot in palletizing configuration.
+ - The tool has to have the tool0 orientation and only with z-value. Workobjects and targets have to be reachable by the robot in palletizing configuration.
+ - Zone is not implemented in `MoveLHomeMade` for now (I don't have any idea how to implement it).
 
 ### Usage 
 
