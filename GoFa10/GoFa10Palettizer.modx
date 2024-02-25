@@ -1,0 +1,145 @@
+MODULE GoFa10Palettizer
+    !Records
+    RECORD j2j3
+        num j2;
+        num j3;
+    ENDRECORD
+
+    ! See TechNote GoFa™: Kinematic and dynamic parameters of GoFa 5
+    CONST num aJ1:=150;
+    CONST num aJ5:=80;
+    CONST num aJ2:=707;
+    CONST num dJ4:=637;
+    CONST num aJ3:=110;
+    CONST num dJ1:=400;
+    CONST num dJ6:=101;
+
+    ! Distance between MoveJ to do the MoveL
+    CONST num MAX_DIST_STEP:=30;
+
+    ! Error for Tool no tool0 orientation nor with x, y values
+    VAR errnum ERR_TOOL_NOT_SUPPORTED:=-1;
+
+    PROC MoveLHomeMade(robtarget toPoint,speeddata speedParam,zonedata zoneParam,INOUT tooldata toolParam\INOUT wobjdata WObj)
+        VAR robtarget pNext:=[[0,0,0],[1,0,0,0],[0,0,0,0],[9E9,9E9,9E9,9E9,9E9,9E9]];
+        VAR robtarget pNow;
+        VAR num dist;
+        VAR num nSteps;
+        VAR pos v;
+        VAR num anglezNow;
+        VAR num anglezFinal;
+        VAR num anglezNext;
+        VAR num deltaAngle;
+
+        pNow:=CRobT(\Tool:=toolParam\WObj:=WObj);
+
+        anglezNow:=EulerZYX(\Z,pNow.rot);
+        anglezFinal:=EulerZYX(\Z,toPoint.rot);
+        v:=toPoint.trans-pNow.trans;
+        dist:=VectMagn(v);
+        nSteps:=Trunc(dist) DIV MAX_DIST_STEP;
+
+        IF dist>MAX_DIST_STEP THEN
+            FOR I FROM 1 TO nSteps-1 DO
+                pNext.trans.x:=pNow.trans.x+v.x*I/nSteps;
+                pNext.trans.y:=pNow.trans.y+v.y*I/nSteps;
+                pNext.trans.z:=pNow.trans.z+v.z*I/nSteps;
+                deltaAngle:=transformToRange(anglezFinal-anglezNow);
+                anglezNext:=anglezNow+(deltaAngle)*I/nSteps;
+                pNext.rot:=OrientZYX(anglezNext,0,0);
+                MoveJHomeMade pNext,speedParam,z15,toolParam\WObj:=WObj;
+            ENDFOR
+        ENDIF
+        MoveJHomeMade toPoint,speedParam,zoneParam,toolParam\WObj:=WObj;
+    ENDPROC
+
+    PROC MoveJHomeMade(robtarget toPoint,speeddata speedParam,zonedata zoneParam,INOUT tooldata toolParam\INOUT wobjdata WObj)
+        VAR num nJoint1;
+        VAR j2j3 nJoint2nJoint3;
+        VAR num nJoint4:=0;
+        VAR num nJoint5;
+        VAR num nJoint6;
+        VAR jointtarget jTarget;
+        VAR pose poseInWobj0;
+        VAR pose poseInWobj;
+
+        IF (toolParam.tframe.trans.x<>0) OR (toolParam.tframe.trans.y<>0) OR (toolParam.tframe.rot<>[1,0,0,0]) THEN
+            RAISE ERR_TOOL_NOT_SUPPORTED;
+        ENDIF
+
+        IF Present(WObj) THEN
+            poseInWobj:=[toPoint.trans,toPoint.rot];
+            poseInWobj0:=PoseMult(WObj.uframe,poseInWobj);
+        ELSE
+            poseInWobj0:=[toPoint.trans,toPoint.rot];
+        ENDIF
+
+        nJoint1:=getJoint1(poseInWobj0.trans);
+        nJoint2nJoint3:=getJoint2AndJoint3(poseInWobj0.trans,toolParam);
+        nJoint5:=getJoint5(nJoint2nJoint3);
+        nJoint6:=getJoint6(poseInWobj0.rot,nJoint1);
+
+        jTarget.robax.rax_1:=nJoint1;
+        jTarget.robax.rax_2:=nJoint2nJoint3.j2;
+        jTarget.robax.rax_3:=nJoint2nJoint3.j3;
+        jTarget.robax.rax_4:=nJoint4;
+        jTarget.robax.rax_5:=nJoint5;
+        jTarget.robax.rax_6:=nJoint6;
+
+        MoveAbsJ jTarget,speedParam,zoneParam,toolParam;
+    ERROR
+        IF ERRNO=ERR_TOOL_NOT_SUPPORTED THEN
+            TPWrite "Only tools that have 'tool0' orientation and values only in z are supported.";
+        ENDIF
+    ENDPROC
+
+    FUNC num getJoint1(pos transParam)
+        RETURN ATan2(transParam.y,transParam.x);
+    ENDFUNC
+
+    FUNC j2j3 getJoint2AndJoint3(pos transParam,INOUT tooldata toolParam)
+        ! Formula from https://robotacademy.net.au/lesson/inverse-kinematics-for-a-2-joint-robot-arm-using-geometry/
+        VAR num x;
+        VAR num y;
+        VAR num a1:=aJ2;
+        VAR num a2;
+        VAR num q1;
+        VAR num q2;
+        VAR j2j3 j2j3Result;
+        VAR num angle0;
+        
+        a2:=Sqrt(aJ3*aJ3+dJ4*dJ4);
+        x:=transParam.z-dJ1+dJ6+toolParam.tframe.trans.z;
+        y:=Sqrt(transParam.x*transParam.x+transParam.y*transParam.y)-aJ5-aJ1;
+
+        q2:=ACos((x*x+y*y-a1*a1-a2*a2)/(2*a1*a2));
+        q1:=ATan(y/x)-ATan((a2*Sin(q2))/(a1+a2*Cos(q2)));
+        IF y/x<0 THEN
+            q1:=q1+180;
+        ENDIF
+
+        j2j3Result.j2:=q1;
+        angle0:=ATan2(aJ3,dJ4);
+        j2j3Result.j3:=q2-90+angle0;
+
+        RETURN j2j3Result;
+    ENDFUNC
+
+    FUNC num getJoint5(j2j3 nJoint2nJoint3)
+        RETURN -nJoint2nJoint3.j2-nJoint2nJoint3.j3+90;
+    ENDFUNC
+
+    FUNC num getJoint6(orient orientParam,num nJoint1)
+        RETURN transformToRange(nJoint1+180-EulerZYX(\Z,orientParam));
+    ENDFUNC
+
+    FUNC num transformToRange(num nValue)
+        WHILE nValue>=180 DO
+            nValue:=nValue-360;
+        ENDWHILE
+        WHILE nValue<=-180 DO
+            nValue:=nValue+360;
+        ENDWHILE
+        RETURN nValue;
+    ENDFUNC
+ENDMODULE
