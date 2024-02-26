@@ -69,7 +69,7 @@ MODULE GoFa5Palettizer
 
         IF Present(WObj) THEN
             poseInWobj:=[toPoint.trans,toPoint.rot];
-            poseInWobj0:=PoseMult(PoseMult(WObj.oframe,WObj.uframe),poseInWobj);
+            poseInWobj0:=PoseMult(PoseMult(WObj.uframe,WObj.oframe),poseInWobj);
         ELSE
             poseInWobj0:=[toPoint.trans,toPoint.rot];
         ENDIF
